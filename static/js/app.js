@@ -643,35 +643,57 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(err => console.error('Initial state fetch failed:', err));
 
+        let receivedFirstSSE = false;
+        let sseWatchdog = null;
+
+        function startPollingFallback() {
+            if (window._isPollingActive) return;
+            window._isPollingActive = true;
+            console.log('Starting high-frequency polling fallback for real-time telemetry.');
+            setInterval(() => {
+                fetch('/api/mission-state')
+                    .then(res => res.json())
+                    .then(data => updateDashboard(data))
+                    .catch(e => console.error('Poll failed:', e));
+            }, 800);
+        }
+
         // Connect SSE Stream
         if (window.EventSource) {
-            eventSource = new EventSource('/api/stream');
-            eventSource.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    updateDashboard(data);
-                } catch (e) {
-                    console.error('Error parsing SSE event:', e);
-                }
-            };
-            eventSource.onerror = (err) => {
-                console.warn('SSE connection interrupted, falling back to polling.');
-                eventSource.close();
+            try {
+                eventSource = new EventSource('/api/stream');
+                
+                // Watchdog: If no SSE message arrives within 2.5s, activate fallback polling
+                sseWatchdog = setTimeout(() => {
+                    if (!receivedFirstSSE) {
+                        console.warn('SSE stream delayed/buffered by proxy, activating fallback polling.');
+                        startPollingFallback();
+                    }
+                }, 2500);
+
+                eventSource.onmessage = (event) => {
+                    try {
+                        receivedFirstSSE = true;
+                        if (sseWatchdog) clearTimeout(sseWatchdog);
+                        const data = JSON.parse(event.data);
+                        updateDashboard(data);
+                    } catch (e) {
+                        console.error('Error parsing SSE event:', e);
+                    }
+                };
+                
+                eventSource.onerror = (err) => {
+                    console.warn('SSE connection interrupted, falling back to polling.');
+                    try { eventSource.close(); } catch (e) {}
+                    startPollingFallback();
+                };
+            } catch (err) {
+                console.warn('EventSource initialization failed, using polling fallback.', err);
                 startPollingFallback();
-            };
+            }
         } else {
             startPollingFallback();
         }
-    }
-
-    function startPollingFallback() {
-        setInterval(() => {
-            fetch('/api/mission-state')
-                .then(res => res.json())
-                .then(data => updateDashboard(data))
-                .catch(e => console.error('Poll failed:', e));
-        }, 1000);
-    }
 
     // Launch Real-time Sync
     startRealTimeSync();

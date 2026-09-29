@@ -582,7 +582,12 @@ def event_stream():
                 state_copy["formatted_time"] = format_mission_time(mission_state["mission_time_seconds"])
                 json_data = json.dumps(state_copy)
             yield f"data: {json_data}\n\n"
-    return Response(generate(), mimetype='text/event-stream')
+    
+    response = Response(generate(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache, no-transform'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['Connection'] = 'keep-alive'
+    return response
 
 if __name__ == '__main__':
     print("AerialLink AI - Mission Control starting on http://127.0.0.1:5000")
