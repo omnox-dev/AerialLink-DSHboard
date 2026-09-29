@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AerialLink AI — Mission Control</title>
+    
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- CesiumJS 3D Geospatial Engine -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="dark-theme">
+    <div id="app" class="app-container">
+        <!-- TOP HEADER BAR -->
+        <header class="top-header">
+            <div class="header-left">
+                <div class="brand-logo">
+                    <svg class="drone-logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path>
+                        <path d="M7 10L3 6m0 0a2 2 0 1 1 3-3L10 7"></path>
+                        <path d="M17 10l4-4m0 0a2 2 0 1 0-3-3L14 7"></path>
+                        <path d="M7 14l-4 4m0 0a2 2 0 1 0 3 3L10 17"></path>
+                        <path d="M17 14l4 4m0 0a2 2 0 1 1-3 3L14 17"></path>
+                    </svg>
+                    <span class="brand-name">AerialLink AI</span>
+                </div>
+                <div class="header-divider"></div>
+                <span class="mission-title">Mission Control</span>
+            </div>
+
+            <div class="header-center">
+                <div class="status-pill link-ok" id="linkStatusPill">
+                    <span class="pulse-indicator"></span>
+                    <i data-lucide="signal" class="pill-icon"></i>
+                    <span class="pill-label">Link: <strong id="linkStatusText">OK</strong></span>
+                </div>
+
+                <div class="status-pill" id="activeDronesPill">
+                    <i data-lucide="navigation" class="pill-icon drone-icon"></i>
+                    <span class="pill-label">Active Drones: <strong id="activeDronesCount">3/3</strong></span>
+                </div>
+
+                <div class="status-pill" id="missionTimePill">
+                    <i data-lucide="clock" class="pill-icon"></i>
+                    <span class="pill-label">Mission Time: <strong id="missionTimeText" class="mono-font">00:24:10</strong></span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <button class="icon-btn theme-toggle-btn" id="btnThemeToggle" title="Toggle Light / Dark Theme">
+                    <i data-lucide="sun" id="themeIcon"></i>
+                </button>
+                <button class="icon-btn" id="btnSettings" title="Mission Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN DASHBOARD CONTENT -->
+        <main class="dashboard-body">
+            <!-- LEFT PANEL: DRONE STATUS & AI ALERTS & CONTROLS -->
+            <aside class="left-panel">
+                <!-- 1. Drone Status List -->
+                <section class="panel-card drone-status-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="crosshair" class="card-icon"></i>
+                            <h2 class="card-title">Drone Status List <span class="badge-count" id="droneCountBadge">(3/3)</span></h2>
+                        </div>
+                    </div>
+                    <div class="drone-list" id="droneListContainer">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </section>
+
+                <!-- 2. AI Decision / Alert Feed -->
+                <section class="panel-card alert-feed-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="bell" class="card-icon"></i>
+                            <h2 class="card-title">AI Decision / Alert Feed</h2>
+                        </div>
+                        <span class="live-tag">LIVE</span>
+                    </div>
+                    <div class="alert-feed-list" id="alertFeedContainer">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </section>
+
+                <!-- 3. Mission Controls -->
+                <section class="panel-card controls-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="gamepad-2" class="card-icon"></i>
+                            <h2 class="card-title">Mission Controls</h2>
+                        </div>
+                    </div>
+                    <div class="controls-grid">
+                        <button class="ctrl-btn btn-perimeter" id="btnDrawPerimeter">
+                            <i data-lucide="pentagon"></i>
+                            <span>Draw Perimeter</span>
+                        </button>
+                        <button class="ctrl-btn btn-deploy" id="btnDeploy">
+                            <i data-lucide="play"></i>
+                            <span>Deploy</span>
+                        </button>
+                        <button class="ctrl-btn btn-rtl" id="btnRTLAll">
+                            <i data-lucide="home"></i>
+                            <span>RTL All</span>
+                        </button>
+                        <button class="ctrl-btn btn-abort" id="btnAbort">
+                            <i data-lucide="square"></i>
+                            <span>Abort</span>
+                        </button>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- CENTER PANEL: LIVE MAP -->
+            <section class="center-panel">
+                <div class="map-wrapper">
+                    <!-- 2D Leaflet Container -->
+                    <div id="leafletMap" class="leaflet-map-canvas"></div>
+
+                    <!-- 3D CesiumJS Simulation Container -->
+                    <div id="cesiumContainer" class="cesium-map-canvas" style="display: none;"></div>
+
+                    <!-- Custom Map Header / Engine Mode & Layer Controls -->
+                    <div class="map-top-bar">
+                        <!-- Mode Switcher: 2D Tactical Map vs 3D Cesium Sim -->
+                        <div class="engine-mode-group">
+                            <button class="engine-btn active" id="btnMode2D" title="Switch to 2D Tactical Map">
+                                <i data-lucide="map"></i> <span>2D Map</span>
+                            </button>
+                            <button class="engine-btn" id="btnMode3D" title="Switch to 3D Cesium UAV Simulation">
+                                <i data-lucide="globe"></i> <span>3D Mission Sim</span>
+                            </button>
+                        </div>
+
+                        <!-- 2D Layer Selector (Visible in 2D Mode) -->
+                        <div class="map-layer-selector" id="layerSelector2D">
+                            <button class="layer-btn active" data-layer="satellite">Satellite</button>
+                            <button class="layer-btn" data-layer="google_sat">Hybrid HD</button>
+                            <button class="layer-btn" data-layer="voyager">Voyager</button>
+                            <button class="layer-btn" data-layer="map">Map</button>
+                            <button class="layer-btn" data-layer="terrain">Terrain</button>
+                            <button class="layer-btn icon-only" id="btnRecenter" title="Fit Perimeter">
+                                <i data-lucide="locate-fixed"></i>
+                            </button>
+                            <button class="layer-btn icon-only" id="btnFullscreen" title="Toggle Fullscreen">
+                                <i data-lucide="maximize-2"></i>
+                            </button>
+                        </div>
+
+                        <!-- 3D Camera Follow Controls (Visible in 3D Mode) -->
+                        <div class="camera-follow-selector" id="cameraFollowSelector" style="display: none;">
+                            <span class="cam-label"><i data-lucide="video"></i> CAM:</span>
+                            <button class="cam-btn active" data-cam="orbit">Tactical Orbit</button>
+                            <button class="cam-btn" data-cam="D1">Follow D1</button>
+                            <button class="cam-btn" data-cam="D2">Follow D2 (Verifier)</button>
+                            <button class="cam-btn" data-cam="D3">Follow D3</button>
+                            <button class="cam-btn" data-cam="target-1">Victim Focus</button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Perimeter Edit Toolbar (Visible when drawing) -->
+                    <div class="perimeter-toolbar" id="perimeterToolbar" style="display: none;">
+                        <span class="toolbar-hint"><i data-lucide="info"></i> Click on map to add vertices, or click first point to close perimeter.</span>
+                        <div class="toolbar-actions">
+                            <button class="btn-sm btn-primary" id="btnSavePerimeter">Save Perimeter</button>
+                            <button class="btn-sm btn-secondary" id="btnCancelPerimeter">Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Scale Indicator -->
+                    <div class="map-custom-scale">
+                        <div class="scale-bar"></div>
+                        <span class="scale-label">500 m</span>
+                    </div>
+
+                    <!-- Bottom Map Legend -->
+                    <div class="map-bottom-legend">
+                        <div class="legend-items">
+                            <div class="legend-item interactive" data-legend-target="boundary" title="Search Boundary Corridor">
+                                <span class="legend-box boundary-box"></span>
+                                <span class="legend-text">Search Boundary</span>
+                            </div>
+                            <div class="legend-item interactive" data-legend-target="sectors" title="Tactical Sectors (A1-C2)">
+                                <span class="legend-box partition-box"></span>
+                                <span class="legend-text">Sector Partition</span>
+                            </div>
+                            <div class="legend-item interactive" data-legend-target="D1" title="Highlight Drone D1 / D3 (Searching)">
+                                <svg class="legend-drone searching-drone" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                    <path d="M7 10L4 7"></path><path d="M17 10l3-3"></path>
+                                </svg>
+                                <span class="legend-text">Searching (D1/D3)</span>
+                            </div>
+                            <div class="legend-item interactive" data-legend-target="D2" title="Highlight Drone D2 (Verifying Target)">
+                                <svg class="legend-drone verifying-drone" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                    <path d="M7 10L4 7"></path><path d="M17 10l3-3"></path>
+                                </svg>
+                                <span class="legend-text">Verifying (D2)</span>
+                            </div>
+                            <div class="legend-item interactive" data-legend-target="D3" title="Highlight Return to Launch">
+                                <svg class="legend-drone rtl-drone" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                    <path d="M7 10L4 7"></path><path d="M17 10l3-3"></path>
+                                </svg>
+                                <span class="legend-text">RTL</span>
+                            </div>
+                            <div class="legend-item interactive" data-legend-target="relay" title="Highlight Airborne Relay UAV (750m Mesh Node)">
+                                <span class="legend-box" style="background: rgba(56, 189, 248, 0.2); border: 1.5px dashed #38bdf8;"></span>
+                                <span class="legend-text" style="color: #38bdf8;">Airborne Relay</span>
+                            </div>
+                            <div class="legend-item interactive" data-legend-target="target-1" title="Focus Verified Victim (Sector B3)">
+                                <span class="legend-marker victim-marker">
+                                    <i data-lucide="user"></i>
+                                </span>
+                                <span class="legend-text">Verified Victim</span>
+                            </div>
+                            <div class="legend-item interactive" data-legend-target="target-2" title="Focus Candidate Target (Sector A2)">
+                                <span class="legend-marker candidate-marker">
+                                    <i data-lucide="help-circle"></i>
+                                </span>
+                                <span class="legend-text">Candidate Target</span>
+                            </div>
+                        </div>
+
+                        <div class="legend-coverage">
+                            <span class="coverage-label">Coverage: <strong id="coverageText">62%</strong></span>
+                            <div class="coverage-progress-bar">
+                                <div class="coverage-progress-fill" id="coverageFill" style="width: 62%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT PANEL: TARGET DETAILS & SENSOR FEED -->
+            <aside class="right-panel" id="targetDetailsPanel">
+                <div class="target-panel-card">
+                    <!-- Panel Header -->
+                    <div class="target-header">
+                        <h2 class="target-title">Target Details</h2>
+                        <button class="panel-close-btn" id="btnCloseTargetDetails" title="Close Panel">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+
+                    <!-- Target Status Card -->
+                    <div class="target-status-banner" id="targetStatusBanner">
+                        <div class="banner-left">
+                            <div class="target-avatar victim-avatar" id="targetAvatar">
+                                <i data-lucide="user"></i>
+                            </div>
+                            <div class="banner-info">
+                                <h3 class="target-main-name" id="targetTitle">Verified Victim</h3>
+                                <div class="target-quick-meta">
+                                    <span class="meta-row">Time: <strong id="targetTime" class="mono-font">00:23:41</strong></span>
+                                    <span class="meta-row">Sector: <strong id="targetSector">B3</strong></span>
+                                    <span class="meta-row">Detected by: <strong id="targetDetectedBy">D2 + D3 (Cross-verified)</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="banner-right">
+                            <span class="confidence-badge" id="targetConfidenceBadge">Confidence: 0.92</span>
+                        </div>
+                    </div>
+
+                    <!-- Aerial Feed / Bounding Box Viewport -->
+                    <div class="aerial-feed-container">
+                        <div class="feed-viewport">
+                            <img id="mainTargetImage" src="/static/images/victim_rgb.jpg" alt="Aerial Sensor Feed" class="feed-img">
+                            
+                            <!-- Tactical Bounding Box Overlay -->
+                            <div class="detection-box" id="detectionBoundingBox">
+                                <div class="corner top-left"></div>
+                                <div class="corner top-right"></div>
+                                <div class="corner bottom-left"></div>
+                                <div class="corner bottom-right"></div>
+                                <span class="box-tag" id="bboxTag">Human 92%</span>
+                            </div>
+
+                            <!-- Tactical HUD Overlay -->
+                            <div class="feed-hud">
+                                <span class="hud-item mono-font">LAT: 34.1282° N</span>
+                                <span class="hud-item mono-font">LNG: -118.5612° W</span>
+                                <span class="hud-rec"><span class="rec-dot"></span> LIVE 4K</span>
+                            </div>
+
+                            <button class="feed-expand-btn" id="btnExpandFeed" title="Expand View">
+                                <i data-lucide="maximize-2"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sensor Tabs (Images / Telemetry / Notes) -->
+                    <div class="sensor-tabs">
+                        <button class="sensor-tab active" data-tab="images">
+                            <i data-lucide="image"></i> Images
+                        </button>
+                        <button class="sensor-tab" data-tab="telemetry">
+                            <i data-lucide="activity"></i> Telemetry
+                        </button>
+                        <button class="sensor-tab" data-tab="notes">
+                            <i data-lucide="file-text"></i> Notes
+                        </button>
+                    </div>
+
+                    <!-- Tab Contents -->
+                    <div class="tab-content-area">
+                        <!-- Tab 1: Images -->
+                        <div class="tab-pane active" id="tabPaneImages">
+                            <div class="thumbnails-grid">
+                                <div class="thumb-card active" data-img="/static/images/victim_rgb.jpg" data-type="rgb">
+                                    <img src="/static/images/victim_rgb.jpg" alt="RGB Aerial">
+                                    <span class="thumb-label">RGB Aerial</span>
+                                </div>
+                                <div class="thumb-card" data-img="/static/images/victim_flir.jpg" data-type="flir">
+                                    <img src="/static/images/victim_flir.jpg" alt="FLIR Thermal">
+                                    <span class="thumb-label">FLIR Thermal</span>
+                                </div>
+                                <div class="thumb-card" data-img="/static/images/candidate_nvg.jpg" data-type="nvg">
+                                    <img src="/static/images/candidate_nvg.jpg" alt="NVG Tactical">
+                                    <span class="thumb-label">NVG / Optical</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Telemetry -->
+                        <div class="tab-pane" id="tabPaneTelemetry">
+                            <div class="telemetry-specs-grid" id="telemetrySpecs">
+                                <div class="spec-item">
+                                    <span class="spec-label">Altitude</span>
+                                    <span class="spec-val mono-font" id="telAltitude">38.2 m AGL</span>
+                                </div>
+                                <div class="spec-item">
+                                    <span class="spec-label">Heat Signature</span>
+                                    <span class="spec-val mono-font" id="telHeat">34.5°C (+12.3°C)</span>
+                                </div>
+                                <div class="spec-item">
+                                    <span class="spec-label">Bearing</span>
+                                    <span class="spec-val mono-font" id="telBearing">045° NNE</span>
+                                </div>
+                                <div class="spec-item">
+                                    <span class="spec-label">Distance</span>
+                                    <span class="spec-val mono-font" id="telDistance">142 m from D2</span>
+                                </div>
+                                <div class="spec-item full-width">
+                                    <span class="spec-label">Cross-Correlation</span>
+                                    <span class="spec-val mono-font" id="telCrossCorr">98.4% (Multi-spectral match)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Notes -->
+                        <div class="tab-pane" id="tabPaneNotes">
+                            <div class="target-notes-box">
+                                <p id="targetNotesText">Hiker in red thermal jacket located near rocky clearing. Conscious and waving. Immediate aerial monitoring active.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel Action Footer -->
+                    <div class="target-actions-footer">
+                        <button class="btn-resolve" id="btnResolveTarget">
+                            <i data-lucide="map-pin"></i>
+                            <span>Mark as Resolved</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- SETTINGS MODAL -->
+        <div class="modal-backdrop" id="settingsModal" style="display: none;">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="card-title-group">
+                        <i data-lucide="sliders" class="card-icon"></i>
+                        <h3>Mission Configuration & Swarm AI</h3>
+                    </div>
+                    <button class="icon-btn" id="btnCloseSettings"><i data-lucide="x"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>AI Detection Confidence Threshold</label>
+                        <div class="range-row">
+                            <input type="range" id="cfgConfidence" min="50" max="95" value="65" class="slider">
+                            <span id="cfgConfidenceVal" class="mono-font">65%</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>UAV Search Flight Speed (m/s)</label>
+                        <div class="range-row">
+                            <input type="range" id="cfgSpeed" min="5" max="25" value="12" class="slider">
+                            <span id="cfgSpeedVal" class="mono-font">12 m/s</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Multi-Drone Mesh Telemetry Frequency</label>
+                        <select class="form-select" id="cfgFreq">
+                            <option value="5">5 Hz (Real-time Tactical)</option>
+                            <option value="2">2 Hz (Low Bandwidth)</option>
+                            <option value="1">1 Hz (Battery Saver)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-sm btn-secondary" id="btnModalClose">Close</button>
+                    <button class="btn-sm btn-primary" id="btnModalSave">Apply Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST NOTIFICATION CONTAINER -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <!-- Application JavaScript Modules -->
+    <script src="/static/js/map.js"></script>
+    <script src="/static/js/cesium_sim.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
