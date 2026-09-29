@@ -1,0 +1,60 @@
+name: AerialLink CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-lint:
+    name: Build, Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pytest
+
+      - name: Lint Code (Syntax Errors & Warnings)
+        run: |
+          # Stop build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Smoke Test (Validate Flask App Loads)
+        run: |
+          python -c "import app; print('✓ App and routes imported successfully without errors')"
+
+  deploy:
+    name: Trigger Render Deployment
+    needs: test-and-lint
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render Deploy Hook
+        # Only triggers if RENDER_DEPLOY_HOOK_URL secret is provided
+        # Render also auto-deploys on push by default
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$DEPLOY_HOOK" ]; then
+            echo "Triggering Render Deploy Hook..."
+            curl -X POST "$DEPLOY_HOOK"
+            echo "✓ Render deployment triggered successfully."
+          else
+            echo "No RENDER_DEPLOY_HOOK_URL secret set. Render will use standard Git auto-deploy."
+          fi
