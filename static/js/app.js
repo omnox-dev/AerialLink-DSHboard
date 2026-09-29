@@ -42,38 +42,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const cameraFollowSelector = document.getElementById('cameraFollowSelector');
 
     // 2D / 3D Engine Mode Toggle
-    btnMode2D.addEventListener('click', () => {
-        currentEngineMode = '2D';
-        btnMode2D.classList.add('active');
-        btnMode3D.classList.remove('active');
-        leafletCanvas.style.display = 'block';
-        cesiumCanvas.style.display = 'none';
-        layerSelector2D.style.display = 'flex';
-        cameraFollowSelector.style.display = 'none';
-        mapController.map.invalidateSize();
-        showToast('Switched to 2D Tactical GIS Map', 'info');
-    });
+    if (btnMode2D) {
+        btnMode2D.addEventListener('click', () => {
+            currentEngineMode = '2D';
+            btnMode2D.classList.add('active');
+            if (btnMode3D) btnMode3D.classList.remove('active');
+            if (leafletCanvas) leafletCanvas.style.display = 'block';
+            if (cesiumCanvas) cesiumCanvas.style.display = 'none';
+            if (layerSelector2D) layerSelector2D.style.display = 'flex';
+            if (cameraFollowSelector) cameraFollowSelector.style.display = 'none';
+            if (mapController && mapController.map) mapController.map.invalidateSize();
+            showToast('Switched to 2D Tactical GIS Map', 'info');
+        });
+    }
 
-    btnMode3D.addEventListener('click', async () => {
-        currentEngineMode = '3D';
-        btnMode3D.classList.add('active');
-        btnMode2D.classList.remove('active');
-        leafletCanvas.style.display = 'none';
-        cesiumCanvas.style.display = 'block';
-        layerSelector2D.style.display = 'none';
-        cameraFollowSelector.style.display = 'flex';
+    if (btnMode3D) {
+        btnMode3D.addEventListener('click', async () => {
+            currentEngineMode = '3D';
+            btnMode3D.classList.add('active');
+            if (btnMode2D) btnMode2D.classList.remove('active');
+            if (leafletCanvas) leafletCanvas.style.display = 'none';
+            if (cesiumCanvas) cesiumCanvas.style.display = 'block';
+            if (layerSelector2D) layerSelector2D.style.display = 'none';
+            if (cameraFollowSelector) cameraFollowSelector.style.display = 'flex';
 
-        if (!cesiumEngine.isInitialized) {
-            showToast('Loading 3D Mountainous Terrain & Vector Landcover...', 'info');
-            await cesiumEngine.init(window.currentEnvConfig);
-        }
+            if (!cesiumEngine.isInitialized) {
+                showToast('Loading 3D Mountainous Terrain & Vector Landcover...', 'info');
+                await cesiumEngine.init(window.currentEnvConfig);
+            }
 
-        if (currentState) {
-            cesiumEngine.updateState(currentState);
-        }
-        cesiumEngine.resize();
-        showToast('Active: Cesium 3D Autonomous UAV Simulation', 'success');
-    });
+            if (currentState) {
+                cesiumEngine.updateState(currentState);
+            }
+            cesiumEngine.resize();
+            showToast('Active: Cesium 3D Autonomous UAV Simulation', 'success');
+        });
+    }
 
     // 3D Camera Follow Controls
     document.querySelectorAll('.camera-follow-selector .cam-btn').forEach(btn => {
@@ -194,20 +198,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.getElementById('btnRecenter').addEventListener('click', () => {
-        if (currentState && currentState.perimeter) {
-            mapController.fitPerimeter(currentState.perimeter);
-        }
-    });
+    const btnRecenter = document.getElementById('btnRecenter');
+    if (btnRecenter) {
+        btnRecenter.addEventListener('click', () => {
+            if (currentState && currentState.perimeter && mapController) {
+                mapController.fitPerimeter(currentState.perimeter);
+            }
+        });
+    }
 
-    document.getElementById('btnFullscreen').addEventListener('click', () => {
-        const elem = document.querySelector('.center-panel');
-        if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch(err => console.log(err));
-        } else {
-            document.exitFullscreen();
-        }
-    });
+    const btnFullscreen = document.getElementById('btnFullscreen');
+    if (btnFullscreen) {
+        btnFullscreen.addEventListener('click', () => {
+            const elem = document.querySelector('.center-panel');
+            if (elem) {
+                if (!document.fullscreenElement) {
+                    elem.requestFullscreen().catch(err => console.log(err));
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+        });
+    }
 
     // Sensor Tabs Switcher (Images / Telemetry / Notes)
     document.querySelectorAll('.sensor-tab').forEach(tab => {
@@ -217,9 +229,12 @@ document.addEventListener('DOMContentLoaded', () => {
             currentSensorTab = tab.getAttribute('data-tab');
 
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            if (currentSensorTab === 'images') document.getElementById('tabPaneImages').classList.add('active');
-            if (currentSensorTab === 'telemetry') document.getElementById('tabPaneTelemetry').classList.add('active');
-            if (currentSensorTab === 'notes') document.getElementById('tabPaneNotes').classList.add('active');
+            const pImages = document.getElementById('tabPaneImages');
+            const pTelemetry = document.getElementById('tabPaneTelemetry');
+            const pNotes = document.getElementById('tabPaneNotes');
+            if (currentSensorTab === 'images' && pImages) pImages.classList.add('active');
+            if (currentSensorTab === 'telemetry' && pTelemetry) pTelemetry.classList.add('active');
+            if (currentSensorTab === 'notes' && pNotes) pNotes.classList.add('active');
         });
     });
 
@@ -231,179 +246,226 @@ document.addEventListener('DOMContentLoaded', () => {
             const imgSrc = card.getAttribute('data-img');
             const imgType = card.getAttribute('data-type');
             currentImageMode = imgType;
-            mainTargetImage.src = imgSrc;
+            if (mainTargetImage) mainTargetImage.src = imgSrc;
 
             // Adjust bounding box label
-            if (imgType === 'flir') {
-                bboxTag.textContent = 'Thermal Sig: 34.5°C';
-            } else if (imgType === 'nvg') {
-                bboxTag.textContent = 'Target Match 94%';
-            } else {
-                bboxTag.textContent = 'Human 92%';
+            if (bboxTag) {
+                if (imgType === 'flir') {
+                    bboxTag.textContent = 'Thermal Sig: 34.5°C';
+                } else if (imgType === 'nvg') {
+                    bboxTag.textContent = 'Target Match 94%';
+                } else {
+                    bboxTag.textContent = 'Human 92%';
+                }
             }
         });
     });
 
     // Close Target Details Drawer
-    document.getElementById('btnCloseTargetDetails').addEventListener('click', () => {
-        targetDetailsPanel.classList.remove('open');
-    });
+    const btnCloseTargetDetails = document.getElementById('btnCloseTargetDetails');
+    if (btnCloseTargetDetails && targetDetailsPanel) {
+        btnCloseTargetDetails.addEventListener('click', () => {
+            targetDetailsPanel.classList.remove('open');
+        });
+    }
 
     // Mark as Resolved Button
-    btnResolveTarget.addEventListener('click', async () => {
-        try {
-            const resp = await fetch('/api/target/resolve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target_id: selectedTargetId })
-            });
-            const data = await resp.json();
-            if (data.success) {
-                showToast('Target marked as RESOLVED. Ground SAR team dispatched.', 'success');
-                btnResolveTarget.innerHTML = `<i data-lucide="check-check"></i> <span>Resolved & Logged</span>`;
-                btnResolveTarget.style.borderColor = '#10b981';
-                btnResolveTarget.style.color = '#10b981';
-                if (window.lucide) lucide.createIcons();
-            }
-        } catch (e) {
-            console.error('Failed to resolve target:', e);
-        }
-    });
-
-    // Mission Control Event Handlers
-    btnDeploy.addEventListener('click', async () => {
-        try {
-            const resp = await fetch('/api/mission/deploy', { method: 'POST' });
-            const data = await resp.json();
-            if (data.success) {
-                showToast('Mission Deployed: Autonomous swarm search active.', 'success');
-            }
-        } catch (e) {
-            console.error('Deploy error:', e);
-        }
-    });
-
-    btnRTLAll.addEventListener('click', async () => {
-        try {
-            const resp = await fetch('/api/mission/rtl', { method: 'POST' });
-            const data = await resp.json();
-            if (data.success) {
-                showToast('RTL All: UAVs returning to launch pad.', 'warning');
-            }
-        } catch (e) {
-            console.error('RTL error:', e);
-        }
-    });
-
-    btnAbort.addEventListener('click', async () => {
-        try {
-            const resp = await fetch('/api/mission/abort', { method: 'POST' });
-            const data = await resp.json();
-            if (data.success) {
-                showToast('Emergency ABORT: Swarm hovering.', 'danger');
-            }
-        } catch (e) {
-            console.error('Abort error:', e);
-        }
-    });
-
-    // Draw Perimeter Handlers
-    btnDrawPerimeter.addEventListener('click', () => {
-        showToast('Click points on the map to define custom perimeter.', 'info');
-        mapController.startDrawPerimeter(async (newPerimeter) => {
+    if (btnResolveTarget) {
+        btnResolveTarget.addEventListener('click', async () => {
             try {
-                const resp = await fetch('/api/mission/set-perimeter', {
+                const resp = await fetch('/api/target/resolve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ perimeter: newPerimeter })
+                    body: JSON.stringify({ target_id: selectedTargetId })
                 });
-                const res = await resp.json();
-                if (res.success) {
-                    showToast('Search perimeter updated successfully!', 'success');
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Target marked as RESOLVED. Ground SAR team dispatched.', 'success');
+                    btnResolveTarget.innerHTML = `<i data-lucide="check-check"></i> <span>Resolved & Logged</span>`;
+                    btnResolveTarget.style.borderColor = '#10b981';
+                    btnResolveTarget.style.color = '#10b981';
+                    if (window.lucide) lucide.createIcons();
                 }
-            } catch (err) {
-                console.error('Save perimeter error:', err);
+            } catch (e) {
+                console.error('Failed to resolve target:', e);
             }
         });
-    });
+    }
 
-    btnSavePerimeter.addEventListener('click', () => {
-        mapController.saveDrawnPerimeter();
-    });
+    // Mission Control Event Handlers
+    if (btnDeploy) {
+        btnDeploy.addEventListener('click', async () => {
+            try {
+                const resp = await fetch('/api/mission/deploy', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Mission Deployed: Autonomous swarm search active.', 'success');
+                }
+            } catch (e) {
+                console.error('Deploy error:', e);
+            }
+        });
+    }
 
-    btnCancelPerimeter.addEventListener('click', () => {
-        mapController.stopDrawPerimeter();
-    });
+    if (btnRTLAll) {
+        btnRTLAll.addEventListener('click', async () => {
+            try {
+                const resp = await fetch('/api/mission/rtl', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('RTL All: UAVs returning to launch pad.', 'warning');
+                }
+            } catch (e) {
+                console.error('RTL error:', e);
+            }
+        });
+    }
+
+    if (btnAbort) {
+        btnAbort.addEventListener('click', async () => {
+            try {
+                const resp = await fetch('/api/mission/abort', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Emergency ABORT: Swarm hovering.', 'danger');
+                }
+            } catch (e) {
+                console.error('Abort error:', e);
+            }
+        });
+    }
+
+    // Draw Perimeter Handlers
+    if (btnDrawPerimeter && mapController) {
+        btnDrawPerimeter.addEventListener('click', () => {
+            showToast('Click points on the map to define custom perimeter.', 'info');
+            mapController.startDrawPerimeter(async (newPerimeter) => {
+                try {
+                    const resp = await fetch('/api/mission/set-perimeter', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ perimeter: newPerimeter })
+                    });
+                    const res = await resp.json();
+                    if (res.success) {
+                        showToast('Search perimeter updated successfully!', 'success');
+                    }
+                } catch (err) {
+                    console.error('Save perimeter error:', err);
+                }
+            });
+        });
+    }
+
+    if (btnSavePerimeter && mapController) {
+        btnSavePerimeter.addEventListener('click', () => {
+            mapController.saveDrawnPerimeter();
+        });
+    }
+
+    if (btnCancelPerimeter && mapController) {
+        btnCancelPerimeter.addEventListener('click', () => {
+            mapController.stopDrawPerimeter();
+        });
+    }
 
     // Settings Modal Handlers
     const settingsModal = document.getElementById('settingsModal');
-    document.getElementById('btnSettings').addEventListener('click', () => {
-        settingsModal.style.display = 'flex';
-    });
-    document.getElementById('btnCloseSettings').addEventListener('click', () => {
-        settingsModal.style.display = 'none';
-    });
-    document.getElementById('btnModalClose').addEventListener('click', () => {
-        settingsModal.style.display = 'none';
-    });
-    document.getElementById('btnModalSave').addEventListener('click', () => {
-        settingsModal.style.display = 'none';
-        showToast('Settings updated successfully.', 'success');
-    });
+    const btnSettings = document.getElementById('btnSettings');
+    const btnCloseSettings = document.getElementById('btnCloseSettings');
+    const btnModalClose = document.getElementById('btnModalClose');
+    const btnModalSave = document.getElementById('btnModalSave');
+
+    if (btnSettings && settingsModal) {
+        btnSettings.addEventListener('click', () => {
+            settingsModal.style.display = 'flex';
+        });
+    }
+    if (btnCloseSettings && settingsModal) {
+        btnCloseSettings.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+    }
+    if (btnModalClose && settingsModal) {
+        btnModalClose.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+    }
+    if (btnModalSave && settingsModal) {
+        btnModalSave.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+            showToast('Settings updated successfully.', 'success');
+        });
+    }
 
     // Slider inputs in modal
     const cfgConfidence = document.getElementById('cfgConfidence');
     const cfgConfidenceVal = document.getElementById('cfgConfidenceVal');
-    cfgConfidence.addEventListener('input', () => {
-        cfgConfidenceVal.textContent = `${cfgConfidence.value}%`;
-    });
+    if (cfgConfidence && cfgConfidenceVal) {
+        cfgConfidence.addEventListener('input', () => {
+            cfgConfidenceVal.textContent = `${cfgConfidence.value}%`;
+        });
+    }
 
     const cfgSpeed = document.getElementById('cfgSpeed');
     const cfgSpeedVal = document.getElementById('cfgSpeedVal');
-    cfgSpeed.addEventListener('input', () => {
-        cfgSpeedVal.textContent = `${cfgSpeed.value} m/s`;
-    });
+    if (cfgSpeed && cfgSpeedVal) {
+        cfgSpeed.addEventListener('input', () => {
+            cfgSpeedVal.textContent = `${cfgSpeed.value} m/s`;
+        });
+    }
 
     /**
      * Updates Dashboard UI from state
      */
     function updateDashboard(state) {
+        if (!state) return;
         currentState = state;
 
         // Top Header stats
-        if (state.formatted_time) {
+        if (state.formatted_time && missionTimeText) {
             missionTimeText.textContent = state.formatted_time;
         }
 
-        const activeCount = Object.values(state.drones).filter(d => d.state !== 'Landed' && d.state !== 'Lost').length;
-        const totalCount = Object.keys(state.drones).length;
-        activeDronesCount.textContent = `${activeCount}/${totalCount}`;
-        droneCountBadge.textContent = `(${activeCount}/${totalCount})`;
+        if (state.drones) {
+            const activeCount = Object.values(state.drones).filter(d => d.state !== 'Landed' && d.state !== 'Lost').length;
+            const totalCount = Object.keys(state.drones).length;
+            if (activeDronesCount) activeDronesCount.textContent = `${activeCount}/${totalCount}`;
+            if (droneCountBadge) droneCountBadge.textContent = `(${activeCount}/${totalCount})`;
+        }
 
         // Coverage meter
-        coverageText.textContent = `${state.coverage_percent}%`;
-        coverageFill.style.width = `${state.coverage_percent}%`;
+        if (coverageText && state.coverage_percent !== undefined) {
+            coverageText.textContent = `${state.coverage_percent}%`;
+        }
+        if (coverageFill && state.coverage_percent !== undefined) {
+            coverageFill.style.width = `${state.coverage_percent}%`;
+        }
 
         // Render Left Panel Drone List
-        renderDroneList(state.drones);
+        if (state.drones) renderDroneList(state.drones);
 
         // Render AI Decision Feed
-        renderAlertFeed(state.alerts);
+        if (state.alerts) renderAlertFeed(state.alerts);
 
         // Update 2D Map Layers
-        mapController.updatePerimeter(state.perimeter);
-        mapController.updateSectors(state.sectors);
-        mapController.updateDrones(state.drones);
-        mapController.updateRelay(state.drones);
-        mapController.updateTargets(state.targets, (tId) => selectTarget(tId));
+        if (mapController) {
+            if (state.perimeter) mapController.updatePerimeter(state.perimeter);
+            if (state.sectors) mapController.updateSectors(state.sectors);
+            if (state.drones) {
+                mapController.updateDrones(state.drones);
+                mapController.updateRelay(state.drones);
+            }
+            if (state.targets) mapController.updateTargets(state.targets, (tId) => selectTarget(tId));
+        }
 
         // Update 3D Cesium Simulation Engine
-        if (cesiumEngine.isInitialized) {
+        if (cesiumEngine && cesiumEngine.isInitialized) {
             cesiumEngine.updateState(state);
         }
 
         // Update Target Details Drawer
-        updateTargetDetailsView(state.targets);
+        if (state.targets) updateTargetDetailsView(state.targets);
 
         if (window.lucide) {
             lucide.createIcons();
@@ -694,6 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             startPollingFallback();
         }
+    }
 
     // Launch Real-time Sync
     startRealTimeSync();
