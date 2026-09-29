@@ -371,24 +371,27 @@ def format_mission_time(total_seconds):
 
 def simulation_worker():
     """Background thread simulating autonomous drone flights, sensor telemetry, and sector sweeps."""
+    tick_count = 0
     while True:
-        time.sleep(1.0)
+        time.sleep(0.5)
+        tick_count += 1
         with state_lock:
             if mission_state["status"] in ["active", "rtl"]:
-                mission_state["mission_time_seconds"] += 1
+                if tick_count % 2 == 0:
+                    mission_state["mission_time_seconds"] += 1
                 
                 # Update coverage slowly if active
                 if mission_state["status"] == "active" and mission_state["coverage_percent"] < 99:
-                    if random.random() < 0.2:
+                    if random.random() < 0.1:
                         mission_state["coverage_percent"] += 1
 
                 for drone_id, drone in mission_state["drones"].items():
                     # Battery drain
-                    if random.random() < 0.1 and drone["battery"] > 5:
+                    if random.random() < 0.05 and drone["battery"] > 5:
                         drone["battery"] -= 1
 
                     # RSSI jitter
-                    drone["rssi"] = -65 - random.randint(0, 12)
+                    drone["rssi"] = -65 - random.randint(0, 10)
 
                     if mission_state["status"] == "rtl" or drone["state"] == "RTL":
                         # Move towards launch pad
@@ -399,8 +402,8 @@ def simulation_worker():
                         dlng = target_lng - drone["lng"]
                         dist = math.hypot(dlat, dlng)
                         if dist > 0.0002:
-                            drone["lat"] += (dlat / dist) * 0.00015
-                            drone["lng"] += (dlng / dist) * 0.00015
+                            drone["lat"] += (dlat / dist) * 0.00025
+                            drone["lng"] += (dlng / dist) * 0.00025
                             drone["heading"] = (math.degrees(math.atan2(dlng, dlat)) + 360) % 360
                             drone["speed"] = 16.0
                         else:
@@ -410,30 +413,30 @@ def simulation_worker():
                         # Orbit target-1 (Verified Victim in Sector B3)
                         target = next((t for t in mission_state["targets"] if t["id"] == "target-1"), None)
                         if target:
-                            drone["pattern_angle"] += 0.15
-                            radius = 0.0012
+                            drone["pattern_angle"] += 0.12
+                            radius = 0.0014
                             drone["lat"] = target["lat"] + radius * math.sin(drone["pattern_angle"])
                             drone["lng"] = target["lng"] + radius * math.cos(drone["pattern_angle"]) * 1.2
                             drone["heading"] = (math.degrees(drone["pattern_angle"]) + 90) % 360
                             drone["speed"] = 7.5
                     elif drone["state"] == "Searching":
                         # Lawnmower pattern sweep inside assigned sector
-                        drone["pattern_angle"] += 0.08
+                        drone["pattern_angle"] += 0.09
                         if drone_id == "D1":
                             # Sector A2 sweep
-                            drone["lat"] = 34.1270 + 0.0020 * math.sin(drone["pattern_angle"] * 0.8)
-                            drone["lng"] = -118.5780 + 0.0035 * math.cos(drone["pattern_angle"] * 0.4)
+                            drone["lat"] = 34.1270 + 0.0028 * math.sin(drone["pattern_angle"] * 0.8)
+                            drone["lng"] = -118.5780 + 0.0040 * math.cos(drone["pattern_angle"] * 0.4)
                             drone["heading"] = (math.degrees(math.sin(drone["pattern_angle"])) * 45 + 90) % 360
                         elif drone_id == "D3":
                             # Sector C1 sweep
-                            drone["lat"] = 34.1225 + 0.0018 * math.sin(drone["pattern_angle"] * 0.6)
-                            drone["lng"] = -118.5670 + 0.0030 * math.cos(drone["pattern_angle"] * 0.5)
+                            drone["lat"] = 34.1225 + 0.0022 * math.sin(drone["pattern_angle"] * 0.6)
+                            drone["lng"] = -118.5670 + 0.0035 * math.cos(drone["pattern_angle"] * 0.5)
                             drone["heading"] = (math.degrees(math.cos(drone["pattern_angle"])) * 60 + 180) % 360
 
-                    # Keep last 15 history positions for trail rendering
+                    # Keep last 25 history positions for trail rendering
                     history = drone.get("history", [])
                     history.append([drone["lat"], drone["lng"]])
-                    if len(history) > 20:
+                    if len(history) > 25:
                         history.pop(0)
                     drone["history"] = history
 

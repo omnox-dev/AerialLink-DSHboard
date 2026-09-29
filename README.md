@@ -36,34 +36,34 @@
 ```mermaid
 flowchart TD
     subgraph Client ["Browser Tactical HUD (Client)"]
-        UI["Tactical HUD UI / Control Deck"]
+        UI["Tactical HUD UI & Control Deck"]
         L2D["Leaflet 2D Tactical Map"]
         C3D["CesiumJS 3D Digital Twin"]
-        SSE_Client["SSE Event Listener (/api/stream)"]
+        SSE_Client["SSE Event Listener"]
     end
 
-    subgraph Backend ["Python / Flask Backend"]
+    subgraph Backend ["Python & Flask Backend"]
         Server["Flask Core Application (app.py)"]
-        WSGI["Gunicorn (gthread workers)"]
-        Sim["Background Simulation Thread (1 Hz)"]
-        State["Mission State Store (Thread-Safe Mutex)"]
+        WSGI["Gunicorn WSGI Server"]
+        Sim["Background Simulation Worker"]
+        State["Mission State Store (Thread-Safe)"]
     end
 
-    subgraph External ["External Services & Data"]
-        Blender["Blender Scenario Engine (blender_scenario.py)"]
-        MapProviders["Mapbox / MapTiler / Stadia / OSM"]
+    subgraph External ["External Services & Providers"]
+        Blender["Blender Scenario Engine"]
+        MapProviders["Mapbox, MapTiler, Stadia, OSM"]
     end
 
-    Sim -->|Telemetry & Trajectories| State
-    State -->|Push Events| Server
-    Server -->|SSE Stream / JSON| SSE_Client
+    Sim --> State
+    State --> Server
+    Server -->|Live Telemetry Stream| SSE_Client
     SSE_Client --> UI
     SSE_Client --> L2D
     SSE_Client --> C3D
-    UI -->|REST Actions (Deploy / RTL / Abort)| Server
-    MapProviders -->|Basemap Tiles / 3D Terrain| L2D
-    MapProviders -->|Satellite / Terrain| C3D
-    Blender -.->|Synthetic Renders (RGB/FLIR/NVG)| State
+    UI -->|Mission Commands| Server
+    MapProviders -->|Basemap Tiles & Terrain| L2D
+    MapProviders -->|Satellite & Elevation| C3D
+    Blender -.->|Synthetic Multispectral Data| State
 ```
 
 ---
